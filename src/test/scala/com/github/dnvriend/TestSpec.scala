@@ -18,6 +18,7 @@ package com.github.dnvriend
 
 import java.io.{ InputStream, File, PrintWriter, Writer }
 
+import akka.actor.Status.Failure
 import akka.actor._
 import akka.camel.{ CamelExtension, Ack, CamelMessage, Consumer }
 import akka.event.{ LoggingReceive, Logging, LoggingAdapter }
@@ -54,12 +55,44 @@ trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAf
         }
 
         disableDelay.foreach { delay ⇒
+          // note that this only works if first the message is Ack-ed!
           CamelExtension(context.system).template.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=suspend", null)
           context.system.scheduler.scheduleOnce(delay, self, Resume)
         }
 
       case Resume ⇒
+        // note that this only works if first the message is Ack-ed!
         CamelExtension(context.system).template.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=resume", null)
+    }
+  }
+
+  class AckCamelConsumer(val endpointUri: String, override val autoAck: Boolean = false, f: Any ⇒ Future[Unit]) extends Consumer {
+    case object BecomeReceive
+
+    def replyWithFail: Receive = LoggingReceive {
+      case BecomeReceive ⇒
+        context.become(receive)
+      case _ ⇒
+        println("replyWithFail")
+        sender() ! Failure
+    }
+
+    def action(payload: Any): Future[Unit] =
+      f(payload)
+
+    override def receive: Receive = LoggingReceive {
+      case payload ⇒
+        context.become(replyWithFail)
+        val theSender = sender()
+        action(payload)
+          .map { _ ⇒
+            context.system.scheduler.scheduleOnce(1.millis, self, BecomeReceive)
+            theSender ! Ack
+          }.recover {
+            case t: Throwable ⇒
+              context.system.scheduler.scheduleOnce(1.millis, self, BecomeReceive)
+              theSender ! Failure
+          }
     }
   }
 
@@ -96,6 +129,9 @@ trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAf
         writer.write("foobar")
       }
     }
+
+  def sleep(duration: FiniteDuration): Unit =
+    Thread.sleep(duration.toMillis)
 
   override protected def afterAll(): Unit = {
     system.terminate()

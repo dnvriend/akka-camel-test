@@ -22,16 +22,38 @@ import akka.actor.{ ActorRef, Props }
 import com.github.dnvriend.TestSpec
 import com.github.dnvriend.camel.{ FileComponent, QueryStringBuilder }
 
+import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 
 trait FileComponentSpec extends TestSpec {
   final val FileDir = "/tmp/files"
 
-  def config(cfg: Map[String, String]): String = QueryStringBuilder(FileComponent, FileDir, cfg)
+  type Config = Map[String, String]
+  type Delay = Option[FiniteDuration]
 
-  def fileConsumer(cfg: Map[String, String], ackDelay: Option[FiniteDuration] = None, disableDelay: Option[FiniteDuration] = None): ActorRef = {
+  val defaultConfig = Map(
+    FileComponent.Options.Delay -> "1000",
+    FileComponent.Options.Delete -> "true",
+    FileComponent.Options.MaxMessagesPerPoll -> "1"
+  )
+
+  def config(cfg: Config): String = QueryStringBuilder(FileComponent, FileDir, cfg)
+
+  def fileConsumer(cfg: Config, ackDelay: Delay = None, disableDelay: Delay = None): ActorRef = {
     val autoAck: Boolean = ackDelay.isEmpty
     system.actorOf(Props(new TestCamelConsumer(config(cfg), autoAck, ackDelay, disableDelay)))
+  }
+
+  def ackFileConsumer(cfg: Config)(f: Any ⇒ Future[Unit]): ActorRef = {
+    system.actorOf(Props(new AckCamelConsumer(config(cfg), autoAck = false, f)))
+  }
+
+  def withAckConsumer(noFiles: Int = 3)(f: Any ⇒ Future[Unit]): ActorRef = {
+    createFiles(FileDir, noFiles)
+    eventually {
+      countFiles(FileDir) shouldBe noFiles
+    }
+    ackFileConsumer(defaultConfig)(f)
   }
 
   override protected def beforeEach(): Unit = {

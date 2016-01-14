@@ -29,6 +29,8 @@ import com.github.dnvriend.camel.FileComponent
  * the same as the string representation of the ActorPath, we can send a message
  * using the control bus protocol to the route, to suspend and/or resume the route.
  *
+ * Note: the camel component __must__ first Ack the message, then the route can
+ * be disabled
  */
 class EnableDisableComponentRouteTest extends FileComponentSpec {
 
