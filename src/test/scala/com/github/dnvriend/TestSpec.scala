@@ -86,11 +86,11 @@ trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAf
         val theSender = sender()
         action(payload)
           .map { _ ⇒
-            context.system.scheduler.scheduleOnce(1.millis, self, BecomeReceive)
+            self ! BecomeReceive
             theSender ! Ack
           }.recover {
             case t: Throwable ⇒
-              context.system.scheduler.scheduleOnce(1.millis, self, BecomeReceive)
+              self ! BecomeReceive
               theSender ! Failure
           }
     }
