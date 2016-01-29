@@ -7,12 +7,20 @@ version := "1.0.0"
 scalaVersion := "2.11.7"
 
 libraryDependencies ++= {
-  val akkaVersion = "2.4.1"
+  val akkaVersion = "2.4.2-RC1"
+  val camelVersion = "2.16.2"
+  val rxJavaReactiveStreamsVersion = "1.0.1"
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+    "ch.qos.logback" % "logback-classic" % "1.1.2",
     "com.typesafe.akka" %% "akka-camel" % akkaVersion,
+    "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+    "org.apache.camel" % "camel-core" % camelVersion,
+    "org.apache.camel" % "camel-rx" % camelVersion,
+    "io.reactivex" % "rxjava-reactive-streams" % rxJavaReactiveStreamsVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % Test,
     "org.scalatest" %% "scalatest" % "2.2.4" % Test
   )
 }

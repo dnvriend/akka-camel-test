@@ -16,6 +16,8 @@
 
 package com.github.dnvriend.camel.file
 
+import com.github.dnvriend.camel.FileComponentSpec
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

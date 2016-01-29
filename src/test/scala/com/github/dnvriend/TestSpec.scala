@@ -16,25 +16,31 @@
 
 package com.github.dnvriend
 
-import java.io.{ InputStream, File, PrintWriter, Writer }
+import java.io.{File, InputStream, PrintWriter, Writer}
 
 import akka.actor.Status.Failure
 import akka.actor._
-import akka.camel.{ CamelExtension, Ack, CamelMessage, Consumer }
-import akka.event.{ LoggingReceive, Logging, LoggingAdapter }
+import akka.camel.{Ack, CamelExtension, CamelMessage, Consumer}
+import akka.event.{Logging, LoggingAdapter, LoggingReceive}
+import akka.stream.{ActorMaterializer, Materializer}
 import akka.testkit.TestProbe
+import org.apache.camel.ProducerTemplate
+import org.apache.camel.impl.DefaultCamelContext
 import org.scalatest._
-import org.scalatest.concurrent.{ Eventually, ScalaFutures }
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {
   implicit val system: ActorSystem = ActorSystem()
+  implicit val mat: Materializer = ActorMaterializer()
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val log: LoggingAdapter = Logging(system, this.getClass)
   implicit val pc: PatienceConfig = PatienceConfig(timeout = 50.seconds)
+  val defaultCamelContext: DefaultCamelContext = CamelExtension(system).context
+  val producerTemplate: ProducerTemplate = CamelExtension(system).template
 
   implicit class FutureToTry[T](f: Future[T]) {
     def toTry: Try[T] = Try(f.futureValue)
@@ -56,43 +62,59 @@ trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAf
 
         disableDelay.foreach { delay ⇒
           // note that this only works if first the message is Ack-ed!
-          CamelExtension(context.system).template.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=suspend", null)
+          producerTemplate.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=suspend", null)
           context.system.scheduler.scheduleOnce(delay, self, Resume)
         }
 
       case Resume ⇒
         // note that this only works if first the message is Ack-ed!
-        CamelExtension(context.system).template.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=resume", null)
+        producerTemplate.sendBody("controlbus:route?routeId=" + self.path.toString + "&action=resume", null)
     }
   }
 
+  /**
+   * ==Overview==
+   * The AckCamelConsumer will reply with a Failure for any new message that the camel component will produce.
+   * The component's implementation determines what will happen when such a message will be received, eg.
+   * leave the file on the filesystem, leave a message on the queue etc.
+   *
+   * The AckCamelConsumer has two states:
+   * <ul>
+   *   <li>The default 'receive' state</li>
+   *   <li>The replyWithFail state, in which the actor will reply with an [[akka.actor.Status.Failure]]</li>
+   * </ul>
+   */
   class AckCamelConsumer(val endpointUri: String, override val autoAck: Boolean = false, f: Any ⇒ Future[Unit]) extends Consumer {
     case object BecomeReceive
 
     def replyWithFail: Receive = LoggingReceive {
       case BecomeReceive ⇒
         context.become(receive)
+        println("--> [REPLY_WITH_FAIL]: Becoming [RECEIVE], effectively accepting new messages")
       case _ ⇒
-        println("replyWithFail")
-        sender() ! Failure
+        println("--> [REPLY_WITH_FAIL]: The camel component sends a new message; Replying failure to the Camel component")
+        sender() ! Failure(new RuntimeException("Not accepting new files"))
     }
 
-    def action(payload: Any): Future[Unit] =
-      f(payload)
+    def action(theSender: ActorRef, payload: Any): Future[Unit] = (for {
+      _ ← f(payload)
+    } yield {
+      self ! BecomeReceive
+      theSender ! Ack
+    }).recover {
+      case t: Throwable ⇒
+        self ! BecomeReceive
+        theSender ! Failure(t)
+    }
 
+    /**
+     * When a message has been received, the actor will become the state [REPLY_WITH_FAIL]
+     */
     override def receive: Receive = LoggingReceive {
       case payload ⇒
         context.become(replyWithFail)
-        val theSender = sender()
-        action(payload)
-          .map { _ ⇒
-            self ! BecomeReceive
-            theSender ! Ack
-          }.recover {
-            case t: Throwable ⇒
-              self ! BecomeReceive
-              theSender ! Failure
-          }
+        action(sender(), payload)
+        println("--> [RECEIVE]: Becoming [REPLY_WITH_FAIL], effectively accepting no more new messages")
     }
   }
 
@@ -118,7 +140,7 @@ trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAf
   }
 
   def countFiles(dir: String): Int =
-    new File(dir).listFiles().count(_.isFile)
+    new File(dir).listFiles().toList.count(f ⇒ f.isFile && !f.getName.toLowerCase.endsWith(".camellock"))
 
   /**
    * Creates a number of files

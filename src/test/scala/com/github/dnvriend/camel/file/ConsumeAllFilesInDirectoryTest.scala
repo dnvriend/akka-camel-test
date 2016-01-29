@@ -16,7 +16,7 @@
 
 package com.github.dnvriend.camel.file
 
-import com.github.dnvriend.camel.FileComponent
+import com.github.dnvriend.camel.{ FileComponentSpec, FileComponent }
 
 /**
  * Because no options have been set other than:

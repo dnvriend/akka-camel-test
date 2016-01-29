@@ -16,7 +16,7 @@
 
 package com.github.dnvriend.camel.file
 
-import com.github.dnvriend.camel.FileComponent
+import com.github.dnvriend.camel.{ FileComponentSpec, FileComponent }
 
 /**
  * The Camel file component is both a polling and a batch consumer,

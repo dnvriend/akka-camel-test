@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package com.github.dnvriend.camel.file
+package com.github.dnvriend.camel
 
 import java.io.File
 
 import akka.actor.{ ActorRef, Props }
 import com.github.dnvriend.TestSpec
-import com.github.dnvriend.camel.{ FileComponent, QueryStringBuilder }
 
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
@@ -56,12 +55,17 @@ trait FileComponentSpec extends TestSpec {
     ackFileConsumer(defaultConfig)(f)
   }
 
-  override protected def beforeEach(): Unit = {
+  def clearFiles(): Unit = {
     if (new File(FileDir).exists()) {
       val dir = new File(FileDir)
       dir.listFiles() foreach (_.delete)
+      println("--> Deleting: " + dir)
       dir.delete()
     }
+  }
+
+  override protected def beforeEach(): Unit = {
+    clearFiles()
     new File(FileDir).mkdir()
   }
 }

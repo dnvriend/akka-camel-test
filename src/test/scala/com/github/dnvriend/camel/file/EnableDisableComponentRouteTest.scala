@@ -16,7 +16,7 @@
 
 package com.github.dnvriend.camel.file
 
-import com.github.dnvriend.camel.FileComponent
+import com.github.dnvriend.camel.{ FileComponentSpec, FileComponent }
 
 /**
  * The file component's behavior is independent of the Actor. This is
