@@ -16,21 +16,21 @@
 
 package com.github.dnvriend
 
-import java.io.{File, InputStream, PrintWriter, Writer}
+import java.io.{ File, InputStream, PrintWriter, Writer }
 
 import akka.actor.Status.Failure
 import akka.actor._
-import akka.camel.{Ack, CamelExtension, CamelMessage, Consumer}
-import akka.event.{Logging, LoggingAdapter, LoggingReceive}
-import akka.stream.{ActorMaterializer, Materializer}
+import akka.camel.{ Ack, CamelExtension, CamelMessage, Consumer }
+import akka.event.{ Logging, LoggingAdapter, LoggingReceive }
+import akka.stream.{ ActorMaterializer, Materializer }
 import akka.testkit.TestProbe
 import org.apache.camel.ProducerTemplate
 import org.apache.camel.impl.DefaultCamelContext
 import org.scalatest._
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.{ Eventually, ScalaFutures }
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.Try
 
 trait TestSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with BeforeAndAfterEach with Eventually {

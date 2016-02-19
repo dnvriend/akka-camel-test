@@ -7,7 +7,7 @@ version := "1.0.0"
 scalaVersion := "2.11.7"
 
 libraryDependencies ++= {
-  val akkaVersion = "2.4.2-RC1"
+  val akkaVersion = "2.4.2"
   val camelVersion = "2.16.2"
   val rxJavaReactiveStreamsVersion = "1.0.1"
   Seq(

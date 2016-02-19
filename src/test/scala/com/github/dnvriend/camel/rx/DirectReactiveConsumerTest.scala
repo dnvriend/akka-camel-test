@@ -23,10 +23,12 @@ import com.github.dnvriend.TestSpec
 import org.apache.camel.Message
 import org.apache.camel.rx.ReactiveCamel
 import org.reactivestreams.Publisher
+import org.scalatest.Ignore
 import rx.{ Observable, RxReactiveStreams }
 
 import scala.concurrent.duration._
 
+@Ignore
 class DirectReactiveConsumerTest extends TestSpec {
   import CamelOps._
   final val Pub = "direct:observable"
